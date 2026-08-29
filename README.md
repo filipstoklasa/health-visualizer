@@ -1,5 +1,7 @@
 # Health Visualizer
 
+[![CI](https://github.com/filipstoklasa/health-visualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/filipstoklasa/health-visualizer/actions/workflows/ci.yml)
+
 A dashboard for your Apple Health export that never uploads your health data.
 
 Export `export.zip` from the Health app, drop it on the page, and get daily
@@ -99,6 +101,9 @@ headless Chrome over the DevTools protocol; it skips itself when Chrome is absen
 ## Deployment
 
 Any static host. The repo is configured for Vercel (`vercel.json`):
+
+Pushes to `main` deploy automatically; pull requests get preview deployments.
+To deploy by hand:
 
 ```bash
 npx vercel --prod
