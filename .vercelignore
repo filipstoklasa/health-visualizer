@@ -1,0 +1,10 @@
+# 979 MB of raw export - never upload it
+apple_health_export/
+
+# your own health data: deploying this would publish it at a public URL
+health.json
+
+# tooling, not part of the site
+parse_health.py
+test.mjs
+browser-test.mjs

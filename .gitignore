@@ -1,0 +1,4 @@
+apple_health_export/
+health.json
+node_modules/
+.vercel/
