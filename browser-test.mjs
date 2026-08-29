@@ -1,5 +1,5 @@
 /**
- * node --test browser-test.mjs
+* node --test browser-test.mjs (builds first; drives the real bundle)
  *
  * The wiring node cannot reach: the module worker, a File crossing postMessage,
  * IndexedDB, and the page actually drawing. Drives real Chrome over CDP against
@@ -65,9 +65,11 @@ const $count = sel => evaluate(`document.querySelectorAll('${sel}').length`);
 
 describe('browser end to end', { skip: CHROME ? false : 'Chrome is not installed' }, () => {
   before(async () => {
-    // A served directory with no health.json, so the import path is the only way in.
+    // The real production bundle, served from a directory with no health.json,
+    // so the import path is the only way in.
+    execFileSync('npx', ['vite', 'build', '--logLevel', 'error'], { cwd: HERE, stdio: 'inherit' });
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'health-browser-'));
-    for (const f of ['index.html', 'ingest.js']) fs.symlinkSync(path.join(HERE, f), path.join(dir, f));
+    fs.cpSync(path.join(HERE, 'dist'), dir, { recursive: true });
     const src = path.join(dir, 'src');
     fs.mkdirSync(path.join(src, 'apple_health_export', 'workout-routes'), { recursive: true });
     fs.writeFileSync(path.join(src, 'apple_health_export', 'export.xml'), XML);
@@ -155,6 +157,23 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     assert.equal(await evaluate(`document.querySelector('#bests .best').getAttribute('aria-selected')`), 'true');
     assert.match(await $text('#mapNote'), /Running on 2024-01-01 10:00/, 'the map follows the pick');
     assert.equal(await $count('#map path.leaflet-interactive'), 1, 'its route is drawn');
+    await evaluate(`document.querySelector('#showAll').click()`);
+  });
+
+  test('picking a workout reuses the table rows instead of rebuilding them', async () => {
+    // The whole point of the per-key subscriptions: a selection must not
+    // regenerate the table (thousands of rows on a real export) or the charts.
+    await evaluate(`
+      document.querySelector('#workouts tbody tr[data-i]').dataset.probe = 'kept';
+      document.querySelector('#metricChart svg').dataset.probe = 'kept';
+    `);
+    await evaluate(`document.querySelector('#workouts tbody tr[data-i]').click()`);
+    assert.equal(await evaluate(`document.querySelector('#workouts tbody tr[data-i]').dataset.probe`),
+      'kept', 'the row is the same DOM node');
+    assert.equal(await evaluate(`document.querySelector('#metricChart svg').dataset.probe`),
+      'kept', 'the metric chart was not redrawn');
+    assert.equal(await evaluate(`document.querySelector('#workouts tbody tr[data-i]').getAttribute('aria-selected')`),
+      'true', 'but it is marked selected');
     await evaluate(`document.querySelector('#showAll').click()`);
   });
 

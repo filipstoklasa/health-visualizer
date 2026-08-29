@@ -1,6 +1,9 @@
-apple_health_export/
-health.json
 node_modules/
-.vercel/
+dist/
 .vercel
 .env*
+
+# never commit the export or anything derived from it
+apple_health_export/
+health.json
+public/health.json

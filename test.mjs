@@ -13,7 +13,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { Aggregator, zipEntries, entryText, ingestZip, metres, ts, rnd } from './ingest.js';
+import { Aggregator, zipEntries, entryText, ingestZip, metres, ts, rnd } from './src/ingest.ts';
+import * as D from './src/data.ts';
+import * as F from './src/format.ts';
+import { niceTicks, xLabel } from './src/chart.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -328,20 +331,22 @@ function same(a, b, at) {
   }
 }
 
-// ---------- the view logic inside index.html ----------
+// ---------- the view logic (src/data.ts, src/format.ts, src/chart.ts) ----------
 describe('view logic', () => {
   let V, DATA;
   before(async () => {
-    const html = fs.readFileSync(path.join(HERE, 'index.html'), 'utf8');
-    const js = html.split('<script type="module">')[1].split('// ---------- map ----------')[0]
-      .replace(/^const \$ = .*$/m, 'const $ = () => ({});');
-    globalThis.location = { search: '' };
-    globalThis.history = { replaceState() {} };
-    V = new Function('_data', `${js}\n DATA = _data; return { series, sleepSeries, rangeDates, niceTicks,`
-      + ' xLabel, night, asleepHours, bucketOf, bucketKey, label, unit, fmt,'
-      + ' bestRuns, paceText, sessionLine, set: s => { state = s; } };');
     DATA = await ingestZip(zipBlob);
-    V = V(DATA);
+    // The modules are pure and take the aggregate explicitly; this binds it so
+    // the assertions below read the same as when they lived inside index.html.
+    let st = { days: 0, metric: 'StepCount' };
+    V = {
+      ...D, ...F, niceTicks, xLabel,
+      set: s => { st = s; },
+      rangeDates: () => D.rangeDates(DATA, st.days),
+      series: (metric, dates) => D.series(DATA, metric, dates),
+      sleepSeries: dates => D.sleepSeries(DATA, dates),
+      unit: k => F.unit(DATA, k),
+    };
   });
 
   test('buckets stay under the mark budget at every range', () => {

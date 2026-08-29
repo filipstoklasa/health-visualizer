@@ -3,6 +3,7 @@ apple_health_export/
 
 # your own health data: deploying this would publish it at a public URL
 health.json
+public/health.json
 
 # tooling, not part of the site
 parse_health.py
