@@ -116,6 +116,19 @@ describe('zip reader', () => {
     }
   });
 
+  test('reads a zip on a browser without ReadableStream async iteration (iOS Safari)', async () => {
+    const orig = ReadableStream.prototype[Symbol.asyncIterator];
+    delete ReadableStream.prototype[Symbol.asyncIterator];
+    try {
+      const entries = await zipEntries(zipBlob);
+      const xml = entries.find(e => e.name.endsWith('export.xml'));
+      assert.equal(await entryText(zipBlob, xml), FIXTURE[xml.name]);
+      assert.ok((await ingestZip(zipBlob)).days);
+    } finally {
+      ReadableStream.prototype[Symbol.asyncIterator] = orig;
+    }
+  });
+
   test('rejects something that is not a zip', async () => {
     await assert.rejects(() => zipEntries(new Blob(['just some text'])), /not a zip/i);
   });

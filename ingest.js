@@ -53,6 +53,20 @@ export async function zipEntries(blob) {
   return entries;
 }
 
+/** iOS Safari has no ReadableStream async iteration; getReader() works everywhere. */
+export async function* streamChunks(stream) {
+  const reader = stream.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      yield value;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** Byte stream of one entry, inflated if needed. */
 export async function entryStream(blob, e) {
   const head = dv(await blob.slice(e.offset, e.offset + 30).arrayBuffer());
@@ -65,7 +79,7 @@ export async function entryStream(blob, e) {
 
 export async function entryText(blob, e) {
   const chunks = [];
-  for await (const c of await entryStream(blob, e)) chunks.push(c);
+  for await (const c of streamChunks(await entryStream(blob, e))) chunks.push(c);
   return new TextDecoder().decode(await new Blob(chunks).arrayBuffer());
 }
 
@@ -284,7 +298,7 @@ export async function ingestZip(blob, onProgress = () => {}) {
   let read = 0;
   const decoder = new TextDecoderStream();
   const stream = (await entryStream(blob, xml)).pipeThrough(decoder);
-  for await (const chunk of stream) {
+  for await (const chunk of streamChunks(stream)) {
     agg.feed(chunk);
     read += chunk.length;
     onProgress(Math.min(0.9, (read / Math.max(xml.size, 1)) * 0.9), 'Reading health records');
